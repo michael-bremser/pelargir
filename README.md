@@ -189,4 +189,4 @@ Step-by-step build notes live in `/docs/build-journal/`. Each entry covers what 
 
 ---
 
-*Part of a broader homelab DevOps learning project. See also: [book-of-mazarbul](https://github.com/you/book-of-mazarbul) — private AI financial assistant stack.*
+*Part of a broader homelab DevOps learning project in conjunction with [Kubecraft](www.kubecraft.dev) See also: [book-of-mazarbul](https://github.com/you/book-of-mazarbul) — private AI financial assistant stack.*
