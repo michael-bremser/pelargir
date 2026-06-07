@@ -1,0 +1,12 @@
+# docker-compose.yml for Jellyfin
+# Populated in Step 4 after NFS mounts are verified in Step 3.
+#
+# Key design notes for k8s migration:
+#   - volumes: section maps directly to PersistentVolumeClaims
+#   - devices: /dev/dri maps to resources.limits: gpu.intel.com/i915 in pod spec
+#   - environment: variables become ConfigMap or Secret entries
+#   - restart: unless-stopped maps to pod restartPolicy: Always
+#
+# Do not use Docker-managed volumes (named volumes).
+# Use bind mounts to NFS mount points on the host — this is the correct
+# pattern for a workload that needs to survive VM rebuilds.
