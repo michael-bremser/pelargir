@@ -1,8 +1,8 @@
 # Build Journal — Step 1: Provision Proxmox VMs
 
-**Date:** —  
+**Date:** 06/08/26  
 **Host:** Nogrod (10.28.99.11)  
-**Status:** [ ] In Progress
+**Status:** [X] Complete 
 
 ---
 
@@ -28,10 +28,10 @@ See ADR-001 (VM over LXC) and ADR-004 (Tailscale via Barazinbar) for the reasoni
 
 | VM | Host | vCPU | RAM | Disk | OS | IP | Purpose |
 |----|------|------|-----|------|----|----|---------|
-| jellyfin | Nogrod | 4 | 8GB | 32GB | Ubuntu 24.04 LTS | 10.28.99.5x | Jellyfin + Docker |
-| barazinbar | Nogrod | 1 | 512MB | 8GB | Ubuntu 24.04 LTS | 10.28.99.5x | Tailscale subnet router |
+| jellyfin | Nogrod | 4 | 8GB | 32GB | Ubuntu 24.04 LTS | DHCP reservation | Jellyfin + Docker |
+| barazinbar | Nogrod | 1 | 512MB | 8GB | Ubuntu 24.04 LTS | DHCP reservation | Tailscale subnet router |
 
-> **IP addresses:** assign static IPs on VLAN 99. Pick two unused addresses in the 10.28.99.x range and note them here before proceeding. The finai cluster uses .40 and .41 — choose something clearly separated (e.g. .50 and .51).
+> **IP addresses:** managed via DHCP reservation on Khazad-dûm, not configured inside the VMs. After each VM is provisioned and boots, get its MAC address from the Proxmox network tab, then create a reservation in pfSense (Services → DHCP Server → VLAN 99) before proceeding. Note the assigned IPs here once reserved.
 
 ---
 
@@ -48,7 +48,7 @@ Datacenter → Nogrod → Create VM
 ```
 
 Settings:
-- **Name:** `jellyfin`
+- **Name:** `pelegir`
 - **OS:** Ubuntu 24.04 ISO from Aglarond storage
 - **System:** leave defaults (BIOS: SeaBIOS, SCSI controller: VirtIO SCSI)
 - **Disk:** 32GB, storage: local-lvm, bus: VirtIO
@@ -73,20 +73,40 @@ Settings:
 - **RAM:** 512 MB — no ballooning
 - **Network:** VirtIO, bridge: vmbr0, VLAN tag: 99
 
-### 4. Install Ubuntu on each VM
+### 4. Create DHCP reservations on Khazad-dûm
+
+Before booting into the Ubuntu installer, get the MAC address for each VM from the Proxmox network tab:
+
+```
+VM → Hardware → Network Device → MAC address
+```
+
+Then in pfSense create a reservation for each MAC on VLAN 99:
+
+```
+Services → DHCP Server → VLAN99 → Static Mappings → Add
+```
+
+Set a hostname matching the VM name (`pelegir` / `barazinbar`) and pick two unused addresses in the 10.28.99.x range. The finai cluster uses .40 and .41 — choose something clearly separated (e.g. .50 and .51). Note the assigned IPs here before proceeding.
+
+### 5. Install Ubuntu on each VM
 
 Start each VM and open the console. Ubuntu Server install — same process for both:
 
 - Language: English
-- Network: configure static IP
-  - **jellyfin:** `10.28.99.5x/24`, gateway `10.28.99.1`, DNS `10.28.99.1`
-  - **barazinbar:** `10.28.99.5x/24`, gateway `10.28.99.1`, DNS `10.28.99.1`
+- Network: leave as DHCP — the reservation on Khazad-dûm handles the rest
 - Storage: use entire disk, LVM
-- Profile: set username and password, hostname matches VM name (`jellyfin` / `barazinbar`)
+- Profile: set username and password, hostname matches VM name (`pelegir` / `barazinbar`)
 - **Enable OpenSSH server: yes**
 - Snaps: skip everything
 
-### 5. Post-install: check and fix LVM allocation
+After install, verify each VM got its reserved IP:
+
+```bash
+ip addr show
+```
+
+### 6. Post-install: check and fix LVM allocation
 
 Ubuntu's LVM installer does not use the full allocated disk by default. Check and fix on both VMs:
 
@@ -94,15 +114,14 @@ Ubuntu's LVM installer does not use the full allocated disk by default. Check an
 df -h
 # If / shows significantly less than the allocated disk size:
 
-sudo lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
-sudo resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
+sudo lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv && sudo resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 df -h
 # Should now show full disk size
 ```
 
 This is the same issue encountered in the finai cluster VMs. Check proactively — it is easier to fix now than after software is installed.
 
-### 6. Post-install: base configuration
+### 7. Post-install: base configuration
 
 Run on both VMs:
 
@@ -114,8 +133,7 @@ sudo apt update && sudo apt upgrade -y
 hostnamectl
 
 # Disable swap (not required for Docker/Tailscale but consistent with lab practice)
-sudo swapoff -a
-sudo sed -i '/ swap / s/^/#/' /etc/fstab
+sudo swapoff -a && sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
 # Enable IP forwarding (required for Tailscale subnet routing on barazinbar; harmless on jellyfin)
 sudo sysctl -w net.ipv4.ip_forward=1
@@ -123,7 +141,7 @@ echo "net.ipv4.ip_forward=1" | sudo tee /etc/sysctl.d/99-forwarding.conf
 sudo sysctl --system
 ```
 
-### 7. Take snapshots
+### 8. Take snapshots
 
 Before proceeding to any software installation, snapshot both VMs:
 
@@ -136,33 +154,14 @@ Name: pre-install
 
 ## Verification
 
-- [ ] Both VMs reachable via SSH from Gundabad
-- [ ] `jellyfin` at `10.28.99.5x`, `barazinbar` at `10.28.99.5x`
-- [ ] Hostnames correct on both (`hostnamectl`)
-- [ ] LVM using full disk on both (`df -h`)
-- [ ] Swap disabled on both (`free -h`)
-- [ ] IP forwarding enabled on both (`sysctl net.ipv4.ip_forward`)
-- [ ] Snapshots taken on both VMs
-
----
-
-## What I Observed
-
-*Fill in during the build.*
-
----
-
-## What I Learned
-
-*Fill in during the build.*
-
----
-
-## Issues Encountered
-
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| | | |
+- [x] DHCP reservations created on Khazad-dûm for both VMs
+- [x] Both VMs reachable via SSH from Gundabad
+- [x] `pelegir` at reserved IP, `barazinbar` at reserved IP
+- [x] Hostnames correct on both (`hostnamectl`)
+- [x] LVM using full disk on both (`df -h`)
+- [x] Swap disabled on both (`free -h`)
+- [x] IP forwarding enabled on both (`sysctl net.ipv4.ip_forward`)
+- [x] Snapshots taken on both VMs
 
 ---
 
