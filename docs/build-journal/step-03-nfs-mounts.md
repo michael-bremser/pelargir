@@ -51,7 +51,7 @@ Shares → UNIX (NFS) Shares → Add
 For each dataset:
 
 - **Path:** `/mnt/MainPool/media` (and `/mnt/MainPool/jellyfin-config`)
-- **Networks:** `10.28.99.0/24` — restrict to VLAN 99, do not leave open
+- **Networks:** `10.28.99.0/24` and `10.28.20.10` — restrict to VLAN 99 and Gundabad
 - **Maproot User / Group:** `root` / `root` for the config share. For the media share, map to the user that owns the media files so Gundabad's writes and pelargir's reads agree on ownership.
 
 Enable the NFS service if it isn't already running (`System Settings → Services → NFS`).
@@ -166,33 +166,13 @@ These two fstab mounts are the Docker-phase stand-in for two PVCs on the `aglaro
 
 ## Verification
 
-- [ ] Both datasets exist on Aglarond with NFS shares restricted to 10.28.99.0/24
-- [ ] `showmount -e 10.28.11.10` lists both exports
-- [ ] Both mounts succeed by hand, reads and writes verified
-- [ ] fstab entries include `_netdev,nofail`
-- [ ] Mounts survive a reboot without intervention
-- [ ] `movies/` and `tv/` structure created
+- [x] Both datasets exist on Aglarond with NFS shares restricted to 10.28.99.0/24
+- [x] `showmount -e 10.28.11.10` lists both exports
+- [x] Both mounts succeed by hand, reads and writes verified
+- [x] fstab entries include `_netdev,nofail`
+- [x] Mounts survive a reboot without intervention
+- [x] `movies/` and `tv/` structure created
 - [ ] Gundabad can mount the media export and write to it (ripping workflow unblocked)
-
----
-
-## What I Observed
-
-*Fill in during the build.*
-
----
-
-## What I Learned
-
-*Fill in during the build.*
-
----
-
-## Issues Encountered
-
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| | | |
 
 ---
 

@@ -88,10 +88,11 @@ services:
     devices:
       - /dev/dri:/dev/dri
 
-    # GIDs recorded in Step 2 — REPLACE with the values from
-    # `getent group render` / `getent group video` on THIS VM.
+    # GIDs verified in Step 2 §16 on this VM: render=993, video=44.
+    # If the VM is ever rebuilt, re-run `getent group render` /
+    # `getent group video` and update — these are NOT stable across installs.
     group_add:
-      - "992"   # render
+      - "993"   # render
       - "44"    # video
 
     volumes:

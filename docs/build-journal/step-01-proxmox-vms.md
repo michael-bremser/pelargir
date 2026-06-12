@@ -152,6 +152,14 @@ On UEFI VMs, the first `update-initramfs` run will print a warning about a remov
 echo 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true' | sudo debconf-set-selections && sudo apt install --reinstall grub-efi-amd64
 ```
 
+If a later boot still stalls at `Starting grub-common.service...` despite the fix above, mask the bookkeeping services — they only record boot-success state for GRUB's fallback feature, which a snapshotted VM doesn't need:
+
+```bash
+sudo systemctl mask grub-common.service grub-initrd-fallback.service
+```
+
+> A stall here can look like a hang but often isn't one — `ssh.socket` comes up before this service. **Always try SSH before concluding the VM is hung.** If SSH works, the boot finished; only the console is stuck.
+
 ### 8. Post-install: base configuration (both VMs)
 
 ```bash

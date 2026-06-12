@@ -197,14 +197,15 @@ pelargir → Start → Console
 
 Expected: normal boot to login prompt. The line `snd_hda_intel ... no codecs found!` may appear — that's the passed-through audio function with nothing attached to it. Harmless.
 
-**If the VM hangs at boot with the GPU attached** (it should not, on OVMF — but if it does):
+**Before concluding the VM is hung:** try SSH to 10.28.99.50. The console can stall on `grub-common.service` *after* `ssh.socket` is already up — that's the Step 1 GRUB issue wearing a GPU costume, not a passthrough failure. If SSH works, the boot succeeded: apply the GRUB fix / masking from Step 1 §7 and carry on to Part 3.
+
+**If the VM is genuinely hung with the GPU attached** (SSH dead, console frozen):
 
 1. Force stop: `pelargir → Stop`
 2. Remove the PCI device: `Hardware → PCI Device → Remove`
 3. Start — the VM boots normally again; nothing is lost
 4. Diagnose from the known-good state: re-verify Part 1 step 8 on the host, confirm BIOS=OVMF and Machine=q35 in the VM hardware tab, then re-attach and retry
-
-This remove-to-recover loop is safe and repeatable. The VM is never damaged by a failed GPU attach.
+5. On retry, change one variable at a time: first uncheck **All Functions** (drops the orphaned audio function), then uncheck **ROM-Bar** (IGD ROMs are often not cleanly readable through VFIO). Transcoding needs only the video function and the render node — neither checkbox costs capability.
 
 ### 12. Check networking survived the PCI change
 
@@ -251,16 +252,23 @@ Expected: `card0` (or `card1`) and **`renderD128`**. If `renderD128` is missing,
 ```bash
 sudo apt update
 sudo apt install -y intel-media-va-driver intel-gpu-tools vainfo
-vainfo
 ```
 
-Success looks like a `VAProfile` list including `VAProfileH264*` and `VAProfileHEVC*` entries with `VAEntrypointVLD` (decode) and `VAEntrypointEncSlice*` (encode). This is the proof Quick Sync is alive inside the VM.
-
-If `vainfo` errors, point it at the device explicitly:
+On a headless server, plain `vainfo` fails with `error: can't connect to X server!` — it defaults to looking for a display. Use the DRM path (which is also what Jellyfin actually uses):
 
 ```bash
-vainfo --display drm --device /dev/dri/renderD128
+sudo vainfo --display drm --device /dev/dri/renderD128
 ```
+
+> `sudo` is needed because your user isn't in the `render` group yet. Fix that now so future sessions don't need root for GPU access:
+>
+> ```bash
+> sudo usermod -aG render,video $USER
+> ```
+>
+> Takes effect at next login. This is for *your* shell convenience only — the Jellyfin container gets its access via `group_add` GIDs in the compose file, independent of any user's group membership.
+
+Success looks like a `VAProfile` list including `VAProfileH264*` and `VAProfileHEVC*` entries with `VAEntrypointVLD` (decode) and `VAEntrypointEncSlice*` (encode). This is the proof Quick Sync is alive inside the VM.
 
 ### 16. Record the render/video GIDs for Step 4
 
@@ -269,12 +277,12 @@ getent group render
 getent group video
 ```
 
-Write both numeric GIDs into the table below — the Docker compose file in Step 4 needs them, and they vary between installs (render is often 992 on Ubuntu 24.04, video is often 44 — use what *this* VM reports).
+Write both numeric GIDs into the table below — the Docker compose file in Step 4 needs them, and they vary between installs. **Verified on this build: render came back 993, not the 992 most guides assume.** Use what *this* VM reports, never an example value.
 
 | Group | GID on pelargir |
 |-------|-----------------|
-| render | |
-| video | |
+| render | 993 |
+| video | 44 |
 
 ### 17. Re-snapshot
 
@@ -288,28 +296,16 @@ pelargir → Shutdown → Snapshots → Take Snapshot → "gpu-working" → Star
 
 ## Verification
 
-- [ ] Nogrod: `dmesg` shows Directed I/O enabled
-- [ ] Nogrod: `lspci -nnk -s 00:02.0` shows `vfio-pci` in use
-- [ ] pelargir hardware tab: PCI device 0000:00:02.0 attached, All Functions + PCIe, Primary GPU unchecked
-- [ ] pelargir boots clean to login with GPU attached
-- [ ] SSH to 10.28.99.50 works (interface name survived)
-- [ ] `lspci` in VM shows UHD 630 with driver `i915`
-- [ ] `/dev/dri/renderD128` exists
-- [ ] `vainfo` lists H264 + HEVC profiles, no errors
-- [ ] render/video GIDs recorded
-- [ ] Powered-off `gpu-working` snapshot taken
-
----
-
-## What I Observed
-
-*Fill in during the build.*
-
----
-
-## What I Learned
-
-*Fill in during the build.*
+- [x] Nogrod: `dmesg` shows Directed I/O enabled
+- [x] Nogrod: `lspci -nnk -s 00:02.0` shows `vfio-pci` in use
+- [x] pelargir hardware tab: PCI device 0000:00:02.0 attached, All Functions + PCIe, Primary GPU unchecked
+- [x] pelargir boots clean to login with GPU attached
+- [x] SSH to 10.28.99.50 works (interface name survived)
+- [x] `lspci` in VM shows UHD 630 with driver `i915`
+- [x] `/dev/dri/renderD128` exists
+- [x] `vainfo` lists H264 + HEVC profiles, no errors
+- [x] render/video GIDs recorded
+- [x] Powered-off `gpu-working` snapshot taken
 
 ---
 
@@ -318,7 +314,10 @@ pelargir → Shutdown → Snapshots → Take Snapshot → "gpu-working" → Star
 | Issue | Cause | Fix |
 |-------|-------|-----|
 | VM hangs at `grub-common.service` with GPU attached (SeaBIOS build) | GPU passthrough to SeaBIOS VM — no UEFI init path for the device | Rebuild VM as OVMF/q35 (Step 1); GPU passthrough requires UEFI |
+| OVMF rebuild *appeared* to hang at the same line | grub-common stall again — boot had actually finished (ssh.socket was up) | Try SSH before declaring a hang; apply GRUB fix / mask services (Step 1 §7) |
 | `update-initramfs` prints removable bootloader warnings | Proxmox host uses removable EFI path | Informational on the host; images generate fine |
+| `vainfo` fails: "can't connect to X server" | Headless server — vainfo defaults to X display | `vainfo --display drm --device /dev/dri/renderD128` |
+| `vainfo --display drm` fails: "failed to open the given device" | User not in `render` group | `sudo` for the test; `usermod -aG render,video $USER` for good |
 | Networking dead after attaching GPU | PCI topology shift renamed the interface | MAC-match netplan config (Step 1) prevents permanently |
 
 ---
