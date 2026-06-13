@@ -1,0 +1,32 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+
+    # Host networking: simplest path for client discovery (DLNA/SSDP)
+    # and avoids a NAT hop on streaming traffic. Replaced by
+    # Service + Ingress in the k8s phase, not translated.
+    network_mode: host
+
+    # Quick Sync: hand the render node to the container
+    devices:
+      - /dev/dri:/dev/dri
+
+    # GIDs verified in Step 2 §16 on this VM: render=993, video=44.
+    # If the VM is ever rebuilt, re-run `getent group render` /
+    # `getent group video` and update — these are NOT stable across installs.
+    group_add:
+      - "993"   # render
+      - "44"    # video
+
+    volumes:
+      # Config: Jellyfin DB, metadata, settings → NFS (survives VM rebuild)
+      - /mnt/jellyfin-config:/config
+      # Media library → NFS, read-only; Jellyfin never writes to media
+      - /mnt/media:/media:ro
+      # Transcode scratch: LOCAL disk, deliberately not NFS — see note
+      - /var/cache/jellyfin-transcodes:/cache
+
+    environment:
+      - TZ=America/Los_Angeles

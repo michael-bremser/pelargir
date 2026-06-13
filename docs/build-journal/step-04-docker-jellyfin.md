@@ -1,8 +1,8 @@
 # Build Journal — Step 4: Docker and Jellyfin
 
-**Date:** —  
+**Date:** 6/13/2026
 **Host:** pelargir VM (10.28.99.50)  
-**Status:** [ ] Not Started
+**Status:** [x] Completed
 
 ---
 
@@ -172,35 +172,15 @@ The tested compose file goes into `compose/jellyfin/docker-compose.yml` in the p
 
 ## Verification
 
-- [ ] `docker run hello-world` clean, docker runs without sudo
-- [ ] `docker compose up -d` starts Jellyfin with no errors in logs
-- [ ] Web UI reachable at `http://10.28.99.50:8096` from the LAN
-- [ ] Movies + TV libraries created against `/media/movies` and `/media/tv`
-- [ ] QSV enabled, device `/dev/dri/renderD128`
-- [ ] Forced transcode plays; `intel_gpu_top` Video engine active; CPU low
-- [ ] Dashboard shows "Transcoding (hw)" on the test stream
-- [ ] Compose file committed to repo
-- [ ] Container survives `docker compose down && docker compose up -d` with config intact (proves config truly lives on NFS)
-
----
-
-## What I Observed
-
-*Fill in during the build.*
-
----
-
-## What I Learned
-
-*Fill in during the build.*
-
----
-
-## Issues Encountered
-
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| | | |
+- [x] `docker run hello-world` clean, docker runs without sudo
+- [x] `docker compose up -d` starts Jellyfin with no errors in logs
+- [x] Web UI reachable at `http://10.28.99.50:8096` from the LAN
+- [x] Movies + TV libraries created against `/media/movies` and `/media/tv`
+- [x] QSV enabled, device `/dev/dri/renderD128`
+- [x] Forced transcode plays; `intel_gpu_top` Video engine active; CPU low
+- [x] Dashboard shows "Transcoding (hw)" on the test stream
+- [x] Compose file committed to repo
+- [x] Container survives `docker compose down && docker compose up -d` with config intact (proves config truly lives on NFS)
 
 ---
 

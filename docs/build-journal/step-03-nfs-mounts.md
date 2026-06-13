@@ -1,8 +1,8 @@
 # Build Journal — Step 3: NFS Mounts from Aglarond
 
-**Date:** —  
+**Date:** 6/12/26
 **Hosts:** Aglarond (TrueNAS UI) for Part 1; pelargir VM for Part 2  
-**Status:** [ ] Not Started
+**Status:** [x] Completed
 
 ---
 
@@ -172,7 +172,7 @@ These two fstab mounts are the Docker-phase stand-in for two PVCs on the `aglaro
 - [x] fstab entries include `_netdev,nofail`
 - [x] Mounts survive a reboot without intervention
 - [x] `movies/` and `tv/` structure created
-- [ ] Gundabad can mount the media export and write to it (ripping workflow unblocked)
+- [x] Gundabad can mount the media export and write to it (ripping workflow unblocked)
 
 ---
 
